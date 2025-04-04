@@ -1,0 +1,240 @@
+
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="UTF-8"/>
+        <title>Kepler.gl embedded map</title>
+
+        <!--Uber Font-->
+        <link rel="stylesheet" href="https://d1a3f4spazzrp4.cloudfront.net/kepler.gl/uber-fonts/4.0.0/superfine.css">
+
+        <!--Kepler css-->
+        <link href="https://unpkg.com/kepler.gl@3.1.1/umd/keplergl.min.css" rel="stylesheet">
+
+        <!--MapBox css-->
+        <link href="https://api.tiles.mapbox.com/mapbox-gl-js/v1.1.1/mapbox-gl.css" rel="stylesheet">
+        <link href="https://unpkg.com/maplibre-gl@^3/dist/maplibre-gl.css" rel="stylesheet">
+
+        <!-— facebook open graph tags -->
+        <meta property="og:url" content="http://kepler.gl/" />
+        <meta property="og:title" content="Large-scale WebGL-powered Geospatial Data Visualization Tool" />
+        <meta property="og:description" content="Kepler.gl is a powerful web-based geospatial data analysis tool. Built on a high performance rendering engine and designed for large-scale data sets." />
+        <meta property="og:site_name" content="kepler.gl" />
+        <meta property="og:image" content="https://d1a3f4spazzrp4.cloudfront.net/kepler.gl/kepler.gl-meta-tag.png" />
+        <meta property="og:image:type" content="image/png" />
+        <meta property="og:image:width" content="800" />
+        <meta property="og:image:height" content="800" />
+
+        <!-— twitter card tags -->
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:site" content="@openjsf">
+        <meta name="twitter:creator" content="@openjsf">
+        <meta name="twitter:title" content="Large-scale WebGL-powered Geospatial Data Visualization Tool">
+        <meta name="twitter:description" content="Kepler.gl is a powerful web-based geospatial data analysis tool. Built on a high performance rendering engine and designed for large-scale data sets.">
+        <meta name="twitter:image" content="https://d1a3f4spazzrp4.cloudfront.net/kepler.gl/kepler.gl-meta-tag.png" />
+
+        <!-- Load React/Redux -->
+        <script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin></script>
+        <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
+        <script src="https://unpkg.com/redux@4.2.1/dist/redux.js" crossorigin></script>
+        <script src="https://unpkg.com/react-redux@8.1.2/dist/react-redux.min.js" crossorigin></script>
+        <script src="https://unpkg.com/styled-components@6.1.8/dist/styled-components.min.js" crossorigin></script>
+
+        <!-- Load Kepler.gl -->
+        <script src="https://unpkg.com/kepler.gl@3.1.1/umd/keplergl.min.js" crossorigin></script>
+
+        <style type="text/css">
+          body {margin: 0; padding: 0; overflow: hidden;}
+        </style>
+
+        <!--MapBox token-->
+        <script>
+          /**
+           * Provide your MapBox Token
+           **/
+          const MAPBOX_TOKEN = 'bpo-map';
+          const WARNING_MESSAGE = 'Please Provide a Mapbox Token in order to use Kepler.gl. Edit this file and fill out MAPBOX_TOKEN with your access key';
+        </script>
+
+        <!-- GA: Delete this as you wish, However to pat ourselves on the back, we only track anonymous pageview to understand how many people are using kepler.gl. -->
+        <script>
+          (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+          (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+          m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+          })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+          ga('create', 'UA-64694404-19', {
+            'storage': 'none',
+            'clientId': localStorage.getItem('ga:clientId')
+          });
+          ga(function(tracker) {
+              localStorage.setItem('ga:clientId', tracker.get('clientId'));
+          });
+          ga('set', 'checkProtocolTask', null); // Disable file protocol checking.
+          ga('set', 'checkStorageTask', null); // Disable cookie storage checking.
+          ga('set', 'historyImportTask', null); // Disable history checking (requires reading from cookies).
+          ga('set', 'page', 'keplergl-html');
+          ga('send', 'pageview');
+        </script>
+      </head>
+      <body>
+        <!-- We will put our React component inside this div. -->
+        <div id="app">
+          <!-- Kepler.gl map will be placed here-->
+        </div>
+
+        <!-- Load our React component. -->
+        <script>
+          /* Validate Mapbox Token */
+          if ((MAPBOX_TOKEN || '') === '' || MAPBOX_TOKEN === 'PROVIDE_MAPBOX_TOKEN') {
+            alert(WARNING_MESSAGE);
+          }
+
+          /** STORE **/
+          const reducers = (function createReducers(redux, keplerGl) {
+            return redux.combineReducers({
+              // mount keplerGl reducer
+              keplerGl: keplerGl.keplerGlReducer.initialState({
+                uiState: {
+                  readOnly: true,
+                  currentModal: null
+                }
+              })
+            });
+          }(Redux, KeplerGl));
+
+          const middleWares = (function createMiddlewares(keplerGl) {
+            return keplerGl.enhanceReduxMiddleware([
+              // Add other middlewares here
+            ]);
+          }(KeplerGl));
+
+          const enhancers = (function craeteEnhancers(redux, middles) {
+            return redux.applyMiddleware(...middles);
+          }(Redux, middleWares));
+
+          const store = (function createStore(redux, enhancers) {
+            const initialState = {};
+
+            return redux.createStore(
+              reducers,
+              initialState,
+              redux.compose(enhancers)
+            );
+          }(Redux, enhancers));
+          /** END STORE **/
+
+          /** COMPONENTS **/
+          var KeplerElement = (function makeKeplerElement(react, keplerGl, mapboxToken) {
+            var LogoSvg = function LogoSvg() {
+              return react.createElement(
+                "div",
+                { className: "logo-container", style: {position: 'fixed', zIndex: 10000, padding: '4px'} },
+                  react.createElement(
+                    "svg",
+                    {
+                      className: "kepler_gl__logo",
+                      width: "107px",
+                      height: "21px",
+                      viewBox: "0 0 124 24"
+                    },
+                    react.createElement(
+                      "g",
+                      { transform: "translate(13.500000, 13.500000) rotate(45.000000) translate(-13.500000, -13.500000) translate(4.000000, 4.000000)" },
+                      react.createElement("rect", { x: "0", y: "6", transform: "matrix(2.535181e-06 1 -1 2.535181e-06 18.1107 6.0369)", fill: "#535C6C", width: "12.1", height: "12.1" }),
+                      react.createElement("rect", { x: "6", y: "0", transform: "matrix(2.535182e-06 1 -1 2.535182e-06 18.1107 -6.0369)", fill:"#1FBAD6", width: "12.1", height: "12.1" })
+                    ),
+                    react.createElement(
+                      "g",
+                      {},
+                      react.createElement("path", { fill:"#1FBAD6", d: "M39,8.7h2.2l-2.8,4.2l2.9,5.1H39l-2.4-4.2h-1.3V18h-2V5l2-0.1v7.3h1.3L39,8.7z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M42.4,13.3c0-1.5,0.4-2.7,1.1-3.5s1.8-1.2,3.1-1.2c1.3,0,2.2,0.4,2.8,1.1c0.6,0.7,0.9,1.8,0.9,3.3 c0,0.4,0,0.8,0,1.1h-5.8c0,1.6,0.8,2.4,2.4,2.4c1,0,2-0.2,2.9-0.6l0.2,1.7c-0.4,0.2-0.9,0.4-1.4,0.5s-1.1,0.2-1.7,0.2 c-1.5,0-2.6-0.4-3.3-1.2C42.8,16.1,42.4,14.9,42.4,13.3z M46.6,10.1c-0.7,0-1.2,0.2-1.5,0.5c-0.4,0.4-0.6,0.9-0.6,1.7h4 c0-0.8-0.2-1.4-0.5-1.7S47.2,10.1,46.6,10.1z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M57.1,18.2c-1,0-1.8-0.3-2.3-0.9l0,0l0,1.3v2.5h-2V8.7h1.5l0.3,0.9h0c0.3-0.3,0.7-0.6,1.2-0.7 c0.4-0.2,0.9-0.3,1.4-0.3c1.2,0,2.1,0.4,2.7,1.1c0.6,0.7,0.9,2,0.9,3.7c0,1.6-0.3,2.8-1,3.7C59.2,17.8,58.3,18.2,57.1,18.2z M56.7,10.3c-0.4,0-0.8,0.1-1.1,0.2c-0.3,0.2-0.6,0.4-0.8,0.7v4.3c0.2,0.3,0.4,0.5,0.7,0.7c0.3,0.2,0.7,0.3,1.1,0.3 c0.7,0,1.2-0.2,1.6-0.7c0.4-0.5,0.5-1.3,0.5-2.5c0-0.8-0.1-1.4-0.2-1.8s-0.4-0.7-0.7-0.9C57.6,10.4,57.2,10.3,56.7,10.3z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M63.2,16V5l2-0.1v10.8c0,0.3,0.1,0.5,0.2,0.6c0.1,0.1,0.3,0.2,0.6,0.2c0.3,0,0.6,0,0.9-0.1V18 c-0.4,0.1-1,0.2-1.6,0.2c-0.8,0-1.3-0.2-1.7-0.5S63.2,16.8,63.2,16z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M68.2,13.3c0-1.5,0.4-2.7,1.1-3.5c0.7-0.8,1.8-1.2,3.1-1.2c1.3,0,2.2,0.4,2.8,1.1c0.6,0.7,0.9,1.8,0.9,3.3 c0,0.4,0,0.8,0,1.1h-5.8c0,1.6,0.8,2.4,2.4,2.4c1,0,2-0.2,2.9-0.6l0.2,1.7c-0.4,0.2-0.9,0.4-1.4,0.5s-1.1,0.2-1.7,0.2 c-1.5,0-2.6-0.4-3.3-1.2C68.6,16.1,68.2,14.9,68.2,13.3z M72.4,10.1c-0.7,0-1.2,0.2-1.5,0.5c-0.4,0.4-0.6,0.9-0.6,1.7h4 c0-0.8-0.2-1.4-0.5-1.7S73,10.1,72.4,10.1z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M80.2,8.7l0.1,1.7h0c0.3-0.6,0.7-1.1,1.1-1.4c0.4-0.3,1-0.5,1.6-0.5c0.4,0,0.7,0,1,0.1l-0.1,2 c-0.3-0.1-0.7-0.2-1-0.2c-0.7,0-1.3,0.3-1.7,0.8c-0.4,0.5-0.7,1.2-0.7,2.1V18h-2V8.7H80.2z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M83.8,17c0-0.8,0.4-1.2,1.2-1.2c0.8,0,1.2,0.4,1.2,1.2c0,0.8-0.4,1.1-1.2,1.1C84.2,18.2,83.8,17.8,83.8,17z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M88.5,18.7c0-0.8,0.4-1.4,1.2-1.8c-0.6-0.3-0.9-0.8-0.9-1.5c0-0.7,0.4-1.2,1.1-1.6c-0.3-0.3-0.6-0.6-0.7-0.9 c-0.2-0.4-0.2-0.8-0.2-1.3c0-1,0.3-1.8,0.9-2.3c0.6-0.5,1.6-0.8,2.8-0.8c0.5,0,1,0,1.4,0.1c0.4,0.1,0.8,0.2,1.1,0.4l2.4-0.2v1.5 h-1.5c0.2,0.4,0.2,0.8,0.2,1.3c0,1-0.3,1.7-0.9,2.2s-1.5,0.8-2.7,0.8c-0.7,0-1.2-0.1-1.6-0.2c-0.1,0.1-0.2,0.2-0.3,0.3 c-0.1,0.1-0.1,0.2-0.1,0.4c0,0.2,0.1,0.3,0.2,0.4c0.1,0.1,0.3,0.2,0.6,0.2l2.7,0.2c1,0.1,1.7,0.3,2.2,0.6c0.5,0.3,0.8,0.9,0.8,1.7 c0,0.6-0.2,1.1-0.5,1.5c-0.4,0.4-0.9,0.8-1.5,1c-0.7,0.2-1.5,0.4-2.4,0.4c-1.3,0-2.3-0.2-3-0.6C88.8,20.1,88.5,19.5,88.5,18.7z M95.1,18.4c0-0.3-0.1-0.5-0.3-0.7s-0.6-0.2-1.1-0.3l-2.7-0.3c-0.2,0.1-0.4,0.3-0.5,0.5c-0.1,0.2-0.2,0.4-0.2,0.6 c0,0.4,0.2,0.8,0.5,1c0.4,0.2,1,0.3,1.8,0.3C94.2,19.5,95.1,19.2,95.1,18.4z M94.3,11.5c0-0.6-0.1-1-0.4-1.2 c-0.3-0.2-0.7-0.3-1.3-0.3c-0.7,0-1.1,0.1-1.4,0.3c-0.3,0.2-0.4,0.6-0.4,1.2s0.1,1,0.4,1.2c0.3,0.2,0.7,0.3,1.4,0.3 c0.6,0,1.1-0.1,1.3-0.4S94.3,12,94.3,11.5z" }),
+                      react.createElement("path", { fill:"#1FBAD6", d: "M99.4,16V5l2-0.1v10.8c0,0.3,0.1,0.5,0.2,0.6c0.1,0.1,0.3,0.2,0.6,0.2c0.3,0,0.6,0,0.9-0.1V18 c-0.4,0.1-1,0.2-1.6,0.2c-0.8,0-1.3-0.2-1.7-0.5S99.4,16.8,99.4,16z" })
+                    )
+                  )
+                );
+              };
+
+            return function App() {
+              var rootElm = react.useRef(null);
+              var _useState = react.useState({
+                width: window.innerWidth,
+                height: window.innerHeight
+              });
+              var windowDimension = _useState[0];
+              var setDimension = _useState[1];
+              react.useEffect(function sideEffect(){
+                function handleResize() {
+                  setDimension({width: window.innerWidth, height: window.innerHeight});
+                };
+                window.addEventListener('resize', handleResize);
+                return function() {window.removeEventListener('resize', handleResize);};
+              }, []);
+              return react.createElement(
+                'div',
+                {style: {position: 'absolute', left: 0, width: '100vw', height: '100vh'}},
+                LogoSvg(),
+                react.createElement(keplerGl.KeplerGl, {
+                  mapboxApiAccessToken: mapboxToken,
+                  id: "map",
+                  width: windowDimension.width,
+                  height: windowDimension.height
+                })
+              )
+            }
+          }(React, KeplerGl, MAPBOX_TOKEN));
+
+          const app = (function createReactReduxProvider(react, reactRedux, KeplerElement) {
+            return react.createElement(
+              reactRedux.Provider,
+              {store},
+              react.createElement(KeplerElement, null)
+            )
+          }(React, ReactRedux, KeplerElement));
+          /** END COMPONENTS **/
+
+          /** Render **/
+          (function render(react, reactDOM, app) {
+            const container = document.getElementById('app');
+            const root = reactDOM.createRoot(container);
+            root.render(app);
+          }(React, ReactDOM, app));
+        </script>
+        <!-- The next script will show how to interact directly with Kepler map store -->
+        <script>
+          /**
+           * Customize map.
+           * In the following section you can use the store object to dispatch Kepler.gl actions
+           * to add new data and customize behavior
+           */
+          (function customize(keplerGl, store) {
+            const datasets = [{"version":"v1","data":{"id":"-xu8mls","label":"bpo_locations_offices.csv","color":[0,92,255],"allData":[[null,"iSON Experiences","Nairobi - Site 1"," Kenya",-1.263366620006298,36.80660581512744,"UAE",25.099354986585602,55.177957833021054],[null,"iSON Experiences","Nairobi - Site 2"," Kenya",-1.33565090446582,36.89501422847665,"UAE",25.099354986585602,55.177957833021054],[null,"iSON Experiences","Nairobi - Site 3"," Kenya",-1.3252967075196944,36.849836515163815,"UAE",25.099354986585602,55.177957833021054],[null,"iSON Experiences","Umhlanga","South Africa",-29.723410454410512,31.071382493180916,"UAE",25.099354986585602,55.177957833021054],[null,"iSON Experiences","Mount Edgecombe","South Africa",-29.719818997888748,31.05602411048225,"UAE",25.099354986585602,55.177957833021054],[null,"iSON Experiences","Cape Town ","South Africa",-33.92011259806458,18.431201956662203,"UAE",25.099354986585602,55.177957833021054],[null,"iSON Experiences","Gqeberha","South Africa",-33.9417419322225,25.559099994441063,"UAE",25.099354986585602,55.177957833021054],[null,"iSON Experiences","Johannesburg","South Africa",-26.086421856680516,28.00492554616655,"UAE",25.099354986585602,55.177957833021054],[null,"iSON Experiences","Dar es Salaam - Site 1","Tanzania",-6.777480039350535,39.26591378504161,"UAE",25.099354986585602,55.177957833021054],[null,"iSON Experiences","Dar es Salaam - Site 2","Tanzania",-6.772512368460715,39.219673985483176,"UAE",25.099354986585602,55.177957833021054],[null,"iSON Experiences","Dar es Salaam - Site 3","Tanzania",-6.75542474495407,39.28149894085058,"UAE",25.099354986585602,55.177957833021054],[null,"iSON Experiences","Lusaka - Site 1","Zambia",-15.41464849843701,28.295986839311084,"UAE",25.099354986585602,55.177957833021054],[null,"iSON Experiences","Lusaka - Site 2","Zambia",-15.381153297321541,28.314971798595526,"UAE",25.099354986585602,55.177957833021054],[null,"iSON Experiences","Lusaka - Site 3","Zambia",-15.411939289821872,28.286863911538575,"UAE",25.099354986585602,55.177957833021054],[null,"iSON Experiences","Addis Ababa","Ethiopia",9.012704482168374,38.737387692927875,"UAE",25.099354986585602,55.177957833021054],[null,"iSON Experiences","Lilongwe - Site 1","Malawi",-13.975852391688932,33.77785692073744,"UAE",25.099354986585602,55.177957833021054],[null,"iSON Experiences","Lilongwe - Site 2","Malawi",-13.955008665741074,33.814944368935706,"UAE",25.099354986585602,55.177957833021054],[null,"iSON Experiences","Gaborone","Botswana",-24.64985221734976,25.908206283536828,"UAE",25.099354986585602,55.177957833021054],[null,"iSON Experiences","Kampala","Uganda",0.3315381441341377,32.57685308651502,"UAE",25.099354986585602,55.177957833021054],[null,"iSON Experiences","Kigali","Rwanda",-1.953319075673941,30.098315230538685,"UAE",25.099354986585602,55.177957833021054],[null,"iSON Experiences","Lagos","Nigeria",6.434996922077639,3.426558858216823,"UAE",25.099354986585602,55.177957833021054],[null,"iSON Experiences","Ibadan","Nigeria",7.38700360071691,3.880962287925188,"UAE",25.099354986585602,55.177957833021054],[null,"iSON Experiences","Kwara","Nigeria",8.481880859455657,4.575719872633568,"UAE",25.099354986585602,55.177957833021054],[null,"iSON Experiences","Ouagadougou","Burkina Faso",12.371726350834793,-1.5202718118642133,"UAE",25.099354986585602,55.177957833021054],[null,"iSON Experiences","Monrovia","Liberia",6.293783643300168,-10.784852988142726,"UAE",25.099354986585602,55.177957833021054],[null,"iSON Experiences","Niamey","Niger",13.511795775037822,2.1255074467865844,"UAE",25.099354986585602,55.177957833021054],[null,"iSON Experiences","Accra","Ghana",5.565076165432279,-0.2061321913796216,"UAE",25.099354986585602,55.177957833021054],[null,"iSON Experiences","Tema","Ghana",5.639029304232761,-0.0012554414126394315,"UAE",25.099354986585602,55.177957833021054],[null,"iSON Experiences","Cairo - Site 1","Egypt",30.091735077875647,31.32219792034787,"UAE",25.099354986585602,55.177957833021054],[null,"iSON Experiences","Cairo - Site 2","Egypt",30.073829110064768,31.284921876252124,"UAE",25.099354986585602,55.177957833021054],[null,"iSON Experiences","Cairo - Site 3","Egypt",30.011871175769674,31.30034666197424,"UAE",25.099354986585602,55.177957833021054],[null,"iSON Experiences","Assuit","Egypt",27.27298114900452,31.26478524689621,"UAE",25.099354986585602,55.177957833021054],[null,"Techno Brain Group","Nairobi"," Kenya",-1.2934502272768116,36.79952054183178,"Kenya",-1.2934502272768116,36.79952054183178],[null,"Techno Brain Group","Kampala","Uganda",0.321786474847994,32.57678407308709,"Kenya",-1.2934502272768116,36.79952054183178],[null,"Techno Brain Group","Dar es Salaam","Tanzania",-6.739771529638589,39.28374461339541,"Kenya",-1.2934502272768116,36.79952054183178],[null,"Techno Brain Group","Addis Ababa","Ethiopia",9.002475309815019,38.76954898588724,"Kenya",-1.2934502272768116,36.79952054183178],[null,"Techno Brain Group","Kigali","Rwanda",-1.971427904207055,30.059307586270158,"Kenya",-1.2934502272768116,36.79952054183178],[null,"Techno Brain Group","Wau","South Sudan",7.996692122427173,27.935801455136197,"Kenya",-1.2934502272768116,36.79952054183178],[null,"Techno Brain Group","Juba","South Sudan",4.8681975885018005,31.591910429962276,"Kenya",-1.2934502272768116,36.79952054183178],[null,"Techno Brain Group","Lilongwe","Malawi",-13.964819696727423,33.76657106916368,"Kenya",-1.2934502272768116,36.79952054183178],[null,"Techno Brain Group","Maputo","Mozambique",-25.958586601751545,32.598630336416015,"Kenya",-1.2934502272768116,36.79952054183178],[null,"Techno Brain Group","Windhoek","Namibia",-22.55967151879885,17.065635074208924,"Kenya",-1.2934502272768116,36.79952054183178],[null,"Techno Brain Group","Mbabane","Swaziland",-26.329785639038416,31.138739004795756,"Kenya",-1.2934502272768116,36.79952054183178],[null,"Techno Brain Group","Lusaka","Zambia",-15.40204238713375,28.303538510868684,"Kenya",-1.2934502272768116,36.79952054183178],[null,"Techno Brain Group","Harare","Zimbabwe",-17.807652844311537,31.077467939820067,"Kenya",-1.2934502272768116,36.79952054183178],[null,"Telus International","Casablanca - Site 1","Morocco",33.522878774685765,-7.640145004759462,"Canada",49.2827,-123.1207],[null,"Telus International","Casablanca - Site 2","Morocco",33.52961276392736,-7.638902311058376,"Canada",49.2827,-123.1207],[null,"Telus International","Cape Town ","South Africa",-33.92664055023568,18.448181245523187,"Canada",49.2827,-123.1207],[null,"CloudFactory","Nairobi"," Kenya",-1.2372001006900337,36.7844109444871,"US",36,-78.8989],[null,"StepWise","Nairobi"," Kenya",-1.2697676516782055,36.80724648626755,"US",30.2672,-97.7431],[null,"Teleperformance","Lagos"," Nigeria",6.430863414248291,3.432404785321851,"France",48.87560979569731,2.3021862489513483],[null,"Teleperformance","Nairobi","Kenya",-1.2726510732859906,36.80421572846212,"France",48.87560979569731,2.3021862489513483],[null,"Teleperformance",null,"Ghana",7.9465,-1.0232,"France",48.87560979569731,2.3021862489513483],[null,"Teleperformance","Cairo - Site 1","Egypt",30.144156553977307,31.46235206973469,"France",48.87560979569731,2.3021862489513483],[null,"Teleperformance","Cairo - Site 2","Egypt",30.016382588489996,31.388285677850252,"France",48.87560979569731,2.3021862489513483],[null,"Teleperformance","Giza - Site 1","Egypt",30.060369640598626,31.20095738581555,"France",48.87560979569731,2.3021862489513483],[null,"Teleperformance","Giza - Site 2","Egypt",30.05609942410129,31.19728474901341,"France",48.87560979569731,2.3021862489513483],[null,"Teleperformance","Alexandria - Site 1","Egypt",31.25237654900732,29.973732077204907,"France",48.87560979569731,2.3021862489513483],[null,"Teleperformance","Tanta","Egypt",30.797995562082207,30.997861219554967,"France",48.87560979569731,2.3021862489513483],[null,"Teleperformance","Cairo - Site 3","Egypt",30.01426716190784,31.35500195353785,"France",48.87560979569731,2.3021862489513483],[null,"Teleperformance","Alexandria - Site 2","Egypt",31.233202471991074,29.947581179603265,"France",48.87560979569731,2.3021862489513483],[null,"Teleperformance","Alexandria - Site 3","Egypt",31.267398132600874,30.023949733496057,"France",48.87560979569731,2.3021862489513483],[null,"Teleperformance","Beni Suef","Egypt",29.010329702845723,31.14988209127756,"France",48.87560979569731,2.3021862489513483],[null,"Teleperformance","Cape Town - Site 1","South Africa",-33.933662103446146,18.46815008939525,"France",48.87560979569731,2.3021862489513483],[null,"Teleperformance","Cape Town - Site 2","South Africa",-33.922093160564096,18.42208820904554,"France",48.87560979569731,2.3021862489513483],[null,"Teleperformance","Antananarivo","Madagascar",-18.884260022428407,47.52061766477701,"France",48.87560979569731,2.3021862489513483],[null,"Teleperformance","Temara - Site 1","Morocco",33.94220814599494,-6.903997722242954,"France",48.87560979569731,2.3021862489513483],[null,"Teleperformance","Temara - Site 2","Morocco",33.9404972733548,-6.901080278378592,"France",48.87560979569731,2.3021862489513483],[null,"Teleperformance","Tunis","Tunisia",36.82173724512606,10.189013265204666,"France",48.87560979569731,2.3021862489513483],[null,"Teleperformance","Lagos","Nigeria",6.4308954106270395,3.4323779625289563,"France",48.87560979569731,2.3021862489513483],[null,"Hugo","Lagos"," Nigeria",6.81605755076474,3.363980855296278,"US",44.3148,-85.6024],[null,"Hugo","Oyo","Nigeria",7.71877915147755,3.9190127382832367,"US",44.3148,-85.6024],[null,"Hugo",null,"South Africa",-30.5595,22.9375,"US",44.3148,-85.6024],[null,"Hugo","Nairobi","Kenya",-1.3246355177477682,36.848768328380004,"US",44.3148,-85.6024],[null,"Africashore","Abeokuta"," Nigeria",7.1555,3.345,"Republic of Mauritius",-20.2406,57.4909],[null,"Africashore","Abuja"," Nigeria",9.0765,7.3986,"Republic of Mauritius",-20.2406,57.4909],[null,"Africashore","Benin City"," Nigeria",6.3377,5.624,"Republic of Mauritius",-20.2406,57.4909],[null,"Africashore","Ibadan"," Nigeria",7.3775,3.947,"Republic of Mauritius",-20.2406,57.4909],[null,"Africashore","Maiduguri"," Nigeria",11.8437,13.158,"Republic of Mauritius",-20.2406,57.4909],[null,"Africashore","Port Harcourt"," Nigeria",4.8156,7.0498,"Republic of Mauritius",-20.2406,57.4909],[null,"Africashore","Warri"," Nigeria",5.5167,5.7519,"Republic of Mauritius",-20.2406,57.4909],[null,"Africashore",null,"Algeria",28.0339,1.6596,"Republic of Mauritius",-20.2406,57.4909],[null,"Africashore",null,"Benin",9.3077,2.3158,"Republic of Mauritius",-20.2406,57.4909],[null,"Africashore",null,"Botswana",-22.3285,24.6849,"Republic of Mauritius",-20.2406,57.4909],[null,"Africashore",null,"Burkina Faso",12.2383,-1.5616,"Republic of Mauritius",-20.2406,57.4909],[null,"Africashore",null,"Burundi",-3.3731,29.9189,"Republic of Mauritius",-20.2406,57.4909],[null,"Africashore",null,"Cameroon",7.3697,12.3547,"Republic of Mauritius",-20.2406,57.4909],[null,"Africashore",null,"Central African Republic",6.6111,20.9394,"Republic of Mauritius",-20.2406,57.4909],[null,"Africashore",null,"Chad",15.4542,18.7322,"Republic of Mauritius",-20.2406,57.4909],[null,"Africashore",null,"Congo",-4.2634,15.2756,"Republic of Mauritius",-20.2406,57.4909],[null,"Africashore",null,"Congo DRC",-4.0383,21.7587,"Republic of Mauritius",-20.2406,57.4909],[null,"Africashore",null,"Egypt",26.8206,30.8025,"Republic of Mauritius",-20.2406,57.4909],[null,"Africashore",null,"Ethiopia",9.145,40.4897,"Republic of Mauritius",-20.2406,57.4909],[null,"Africashore",null,"Gabon",-0.8037,11.6094,"Republic of Mauritius",-20.2406,57.4909],[null,"Africashore",null,"Ghana",7.9465,-1.0232,"Republic of Mauritius",-20.2406,57.4909],[null,"Africashore",null,"Guinea",9.9456,-9.6966,"Republic of Mauritius",-20.2406,57.4909],[null,"Africashore",null,"Ivory Coast",7.54,-5.5471,"Republic of Mauritius",-20.2406,57.4909],[null,"Africashore",null,"Kenya",-1.2864,36.8172,"Republic of Mauritius",-20.2406,57.4909],[null,"Africashore",null,"Liberia",6.4281,-9.4295,"Republic of Mauritius",-20.2406,57.4909],[null,"Africashore",null,"Malawi",-13.2543,34.3015,"Republic of Mauritius",-20.2406,57.4909],[null,"Africashore",null,"Mali",17.5707,-3.9962,"Republic of Mauritius",-20.2406,57.4909],[null,"Africashore",null,"Mauritania",21.0079,-10.9408,"Republic of Mauritius",-20.2406,57.4909],[null,"Africashore",null,"Morocco",31.7917,-7.0926,"Republic of Mauritius",-20.2406,57.4909],[null,"Africashore",null,"Namibia",-22.57,17.0864,"Republic of Mauritius",-20.2406,57.4909],[null,"Africashore",null,"Niger",17.6078,8.0817,"Republic of Mauritius",-20.2406,57.4909],[null,"Africashore",null,"Nigeria",9.082,8.6753,"Republic of Mauritius",-20.2406,57.4909],[null,"Africashore",null,"Rwanda",-1.9403,29.8739,"Republic of Mauritius",-20.2406,57.4909],[null,"Africashore",null,"Senegal",14.4974,-14.4524,"Republic of Mauritius",-20.2406,57.4909],[null,"Africashore",null,"Sierra Leone",8.4606,-11.7799,"Republic of Mauritius",-20.2406,57.4909],[null,"Africashore",null,"South Africa",-30.5595,22.9375,"Republic of Mauritius",-20.2406,57.4909],[null,"Africashore",null,"South Sudan",6.877,31.306,"Republic of Mauritius",-20.2406,57.4909],[null,"Africashore",null,"Sudan",12.8628,30.2176,"Republic of Mauritius",-20.2406,57.4909],[null,"Africashore",null,"Tanzania",-6.369,34.8888,"Republic of Mauritius",-20.2406,57.4909],[null,"Africashore",null,"Togo",8.6195,0.8248,"Republic of Mauritius",-20.2406,57.4909],[null,"Africashore",null,"Tunisia",33.8869,9.5375,"Republic of Mauritius",-20.2406,57.4909],[null,"Africashore",null,"Uganda",1.3733,32.2903,"Republic of Mauritius",-20.2406,57.4909],[null,"Africashore",null,"Zambia",-13.1339,27.8493,"Republic of Mauritius",-20.2406,57.4909],[null,"Africashore",null,"Zimbabwe",-19.0154,29.1549,"Republic of Mauritius",-20.2406,57.4909],[null,"Sama","Nairobi"," Kenya",-1.2864,36.8172,"US",37.7749,-122.4194],[null,"Sama","Gulu"," Uganda",2.7667,32.2996,"US",37.7749,-122.4194],[null,"Sama","Kampala"," Uganda",0.3476,32.5825,"US",37.7749,-122.4194],[null,"Majorel Kenya","Nairobi"," Kenya",-1.2864,36.8172,"Luxembourg",49.6116,6.1319]],"fields":[{"name":"8","type":"string","format":"","analyzerType":"STRING"},{"name":"Name","type":"string","format":"","analyzerType":"STRING"},{"name":"Office City","type":"string","format":"","analyzerType":"STRING"},{"name":"Office Country","type":"string","format":"","analyzerType":"STRING"},{"name":"Latitude","type":"real","format":"","analyzerType":"FLOAT"},{"name":"Longitude","type":"real","format":"","analyzerType":"FLOAT"},{"name":"HQ Country","type":"string","format":"","analyzerType":"STRING"},{"name":"hq_lat","type":"real","format":"","analyzerType":"FLOAT"},{"name":"hq_long","type":"real","format":"","analyzerType":"FLOAT"}],"type":"","metadata":{"id":"-xu8mls","format":"row","label":"bpo_locations_offices.csv"},"disableDataOperation":false}},{"version":"v1","data":{"id":"-mvlvqn","label":"kepler.gl_bpo_locations_hq-2.csv-2.csv","color":[62,172,168],"allData":[["iSON Xperiences","UAE",25.099354986585602,55.177957833021054,"https://www.isonxperiences.com","$2.9 B","18,000 employees","Hathway, Airtel, Bajaj , State Bank of India, Vodafone, Orange, Shein, Amazon, Samsung, BMW, Toyota, Safaricom, MultiChoice, tigo, SBI card, FairMoney, Electrolux, Ecobank, Heineken, boatsetter - clients in Telecom, Media, E-commerce & Retail, Banking & Financial Services, Insurance & Insur-Tech, Travel, Energy & Utilities, Government (https://isonxperiences.com/industries/)","Africa: South Africa, Kenya, Tanzania, Zambia, Ethiopia, Malawi, Botswana, Uganda, Rwanda, Nigeria, Burkina Faso, Liberia, Niger, Ghana, Egypt\r\nAmerica: US, Canada\r\nAsia: India, UAE\r\nEurope: UK,  France"],["Techno Brain Group","Kenya",-1.2934073228172074,36.79949908401952,"https://technobraingroup.com/about-us/","$252.1M","1200+ employees","Microsoft, Google, Walmart, gettyimages, viva transcription, ARC management group, KLS Financial Services, Barton Law Group, Chipper, RentDebt, Telkom, TotalEnergies, RUBiS, Zulu, Isuzu, UNHCR, Multichoice  - https://technobraingroup.com/bpo","- Africa: Kenya, Uganda, Tanzania, Ethiopia, Rwanda, South Sudan, Malawi, Mozambique, Namibia, Swaziland, Zambia, Zimbabwe - America: US - Europe: UK - Asia: India, UAE"],["Telus International","Canada",49.2827,-123.1207,"https://www.telusdigital.com/","$14.82 billion (annual 2023)","~77,000 employees","Google, Spectrum, Samsung, Traveloka, Airbnb, Epic Games, Nuro, and Ooma.","Africa: South Africa, Morocco \r\nAmerica: Canada, US, Costa Rica, El Salvador, Guatemala, Brazil\r\nEurope: Austria, Bosnia & Herzegovina, Bulgaria, Czechia, Denmark, Finland, France, Germany, Ireland, Latvia, Poland, Portugal, Romania, Slovakia, Spain, Switzerland, Turkey, UK\r\nAsia: China, India, Japan, Philippines, Singapore, South Korea"],["Oasis Outsourcing","Kenya",-1.266921343886792,36.80996440870251,"https://oasisoutsourcing.co.ke/","$321.9 M","51-200 employees","N/A","Kenya"],["AfricaAI","Kenya",-1.210396340832668,36.87122209455546,"https://www.africa.ai/","N/A","11-50 employees","N/A","Kenya"],["CloudFactory","US",36,-78.8989,"https://www.cloudfactory.com/","$147M","1,001-5,000 employees with about 2,500 employees in Kenya","Ibotta, Luminar, Expensify, Microsoft, Mitsubishi Electric, Matterport, Sartorius, Nearmap","Africa: Kenya\r\nAmerica: US\r\nEurope: UK\r\nAsia: Nepal"],["StepWise","US",30.2672,-97.7431,"https://www.linkedin.com/company/stepwise-net/ https://www.facebook.com/StepWiseImpactSourcing/ now Daproim Africa","N/A","1,001-5,000 employees","N/A","Kenya"],["Toloka","Netherlands",52.308668837842035,4.7588557364263915,"https://toloka.ai/","$15M (annual 2024)","Large community of freelance \r\nworkers\r\n","Biotronik, Samsung, ID R&D, Replica, companies in the fields of self-driving cars, eCommerce, voice assistants, and search engines.","Africa: Remote\r\nAmerica: US, Canada, \r\nEurope: Netherlands, Switzerland, Poland, Serbia\r\nAsia: Israel, Singapore\r\n"],["Teleperformance","France",48.87560979569731,2.3021862489513483,"https://www.teleperformance.com/","$9.22 B (annual 2023)","nearly 500,000 team members","Only mentioned on the website: Samsung, Easyjet, Nestle","Africa: Egypt. Madagascar, Morocco, Nigeria, South Africa, Tunisia, UAE\r\nAmerica: Argentina, Brazil, Canada, Chile, Colombia, Costa Rica, D. Republic, El Salvador, Guatemala, Guyana, Honduras, Jamaica, Mexico, Nicaragua, Peru, US\r\nAsia: China, India, Indonesia, Japan, Lebanon, Malaysia, Philipines, Saudi Arabia, Singapore, South Korea, Thailand, Vietnam\r\nEurope: Albania, Austria, Bosnia Herzegovina, Croatia, Czech Republic, Denmark, Finland, France, Germany, Greece, Italy, Netherlands, Norway, Poland, Romania, Russia, Spain, Sweden, Switzerland, Turkey, Ukraine, United Kingdom\r\n"],["Hugo","US",44.3148,-85.6024,"https://hugoinc.com/about/","$247.3M","3,800 employees","Google, Meta, Outschool, Topicals, upward, attentive, aurora, Faire","Nigeria, Kenya, South Africa"],["Sigma AI","Spain",40.4168,-3.7038,"https://sigma.ai/","$85M","25,000","N/A","Remote"],["Africashore","Republic of Mauritius",-20.2406,57.4909,"https://www.africashore.com/","N/A","3,047.956","Lear Corporation, Dekra, inetum, pwc, wave","Nigeria, Republic of Mauritius, Algeria, Benin, Botswana, Burkina Faso, Burundi, Cameroon, Central African Republic, Chad, Congo, Congo DRC, Egypt, Ethiopia, Gabon, Ghana, Guinea, Ivory Coast, Kenya, Liberia, Malawi, Mali, Mauritania, Morocco, Namibia, Niger, Nigeria, Rwanda, Senegal, Sierra Leone, South Africa, South Sudan, Sudan, Tanzania, Togo, Tunisia, Uganda, Zambia, Zimbabwe"],["Realm digital","South Africa",-33.9249,18.4241,"https://realmdigital.com/","$5.2M","100 employees","Mine Safe, Armscor, Computer Mania, Volkswagen, Vodafone, Standard Bank, Spar, ShopCreatify,  - https://realmdigital.com/our-clients/","South Africa"],["Melio Ai","South Africa",-26.2041,28.0473,"https://melio.ai/","$1.2M","50 employees","clients in banks, insurance companies, manufacturing, and the technology industry. ","South Africa"],["Sama","US",37.7749,-122.4194,"https://www.sama.com/","$3M (annual 2024)","over 20 000","Google, Microsoft, Meta, Siemens, Qualcomm, Precision AI, Sony, Walmart, eBay, Nasa, Vulcan, gettyimages, Continental, Swift","Africa: Kenya, Uganda \r\nEurope: Netherlands\r\nAmerica: US, Canada, Costa Rica"],["Majorel Kenya","Luxembourg",49.6116,6.1319,"https://www.facebook.com/majorelkenya/ - now part of Teleperformance","€2,1M (annual 2022 for Majorel)\r\n$9.22 B (annual 2023 for Teleperformance)","82000","N/A but Meta had a contract with them","Kenya"],["Remotasks","Philippines",14.617758801315468,121.04914199342323,"https://www.remotasks.com/en","$1.1B (Scale AI is the parent company)","4026 Employees","Scale’s clients include: OpenAI, cohere, General Motors, Adept, Microsoft, Meta, Cisco, Time, SAP, goodcall, Harvard Medical School, OpenSea, Voxel, ","In March 2024, it was reported that Remotasks had terminated its services in whole countries without explanation. Workers in Kenya, Nigeria, and Pakistan found themselves cut off from accessing its services. Remotasks has also halted new sign-ups in Thailand, Vietnam, and Poland.  (https://restofworld.org/2024/scale-ai-remotasks-banned-workers/)"]],"fields":[{"name":"Name","type":"string","format":"","analyzerType":"STRING"},{"name":"HQ Country","type":"string","format":"","analyzerType":"STRING"},{"name":"hq_lat","type":"real","format":"","analyzerType":"FLOAT"},{"name":"hq_long","type":"real","format":"","analyzerType":"FLOAT"},{"name":"Website","type":"string","format":"","analyzerType":"STRING"},{"name":"Revenue","type":"string","format":"","analyzerType":"STRING"},{"name":"Number of employees ","type":"string","format":"","analyzerType":"STRING"},{"name":"Clients","type":"string","format":"","analyzerType":"STRING"},{"name":"Offices","type":"string","format":"","analyzerType":"STRING"}],"type":"","metadata":{"id":"-mvlvqn","format":"row","label":"kepler.gl_bpo_locations_hq-2.csv-2.csv"},"disableDataOperation":false}}];
+            const config = {"version":"v1","config":{"visState":{"filters":[{"dataId":["-xu8mls"],"id":"sluk0lbb9","name":["Name"],"type":"multiSelect","value":["CloudFactory","Hugo","Sama","Majorel Kenya","StepWise","Techno Brain Group","Teleperformance","Telus International","iSON Experiences"],"plotType":{"type":"histogram"},"animationWindow":"free","yAxis":null,"view":"side","speed":1,"enabled":true}],"layers":[{"id":"f0d2m7h","type":"point","config":{"dataId":"-mvlvqn","columnMode":"points","label":"hq","color":[184,15,135],"highlightColor":[252,242,26,255],"columns":{"lat":"hq_lat","lng":"hq_long"},"isVisible":true,"visConfig":{"radius":20,"fixedRadius":false,"opacity":0.8,"outline":false,"thickness":2,"strokeColor":null,"colorRange":{"name":"Global Warming","type":"sequential","category":"Uber","colors":["#4C0035","#880030","#B72F15","#D6610A","#EF9100","#FFC300"]},"strokeColorRange":{"name":"Global Warming","type":"sequential","category":"Uber","colors":["#4C0035","#880030","#B72F15","#D6610A","#EF9100","#FFC300"]},"radiusRange":[0,50],"filled":true,"billboard":false,"allowHover":true,"showNeighborOnHover":false,"showHighlightColor":true},"hidden":false,"textLabel":[{"field":{"name":"Name","type":"string"},"color":[255,255,255],"size":18,"offset":[0,0],"anchor":"start","alignment":"center","outlineWidth":0,"outlineColor":[255,0,0,255],"background":false,"backgroundColor":[0,0,200,255]}]},"visualChannels":{"colorField":null,"colorScale":"quantile","strokeColorField":null,"strokeColorScale":"quantile","sizeField":null,"sizeScale":"linear"}},{"id":"bdoknoc","type":"point","config":{"dataId":"-xu8mls","columnMode":"points","label":"office","color":[88,121,218],"highlightColor":[252,242,26,255],"columns":{"lat":"Latitude","lng":"Longitude"},"isVisible":true,"visConfig":{"radius":10,"fixedRadius":false,"opacity":0.8,"outline":false,"thickness":2,"strokeColor":null,"colorRange":{"name":"Global Warming","type":"sequential","category":"Uber","colors":["#4C0035","#880030","#B72F15","#D6610A","#EF9100","#FFC300"]},"strokeColorRange":{"name":"Global Warming","type":"sequential","category":"Uber","colors":["#4C0035","#880030","#B72F15","#D6610A","#EF9100","#FFC300"]},"radiusRange":[0,50],"filled":true,"billboard":false,"allowHover":true,"showNeighborOnHover":false,"showHighlightColor":true},"hidden":false,"textLabel":[{"field":null,"color":[255,255,255],"size":18,"offset":[0,0],"anchor":"start","alignment":"center","outlineWidth":0,"outlineColor":[255,0,0,255],"background":false,"backgroundColor":[0,0,200,255]}]},"visualChannels":{"colorField":null,"colorScale":"quantile","strokeColorField":null,"strokeColorScale":"quantile","sizeField":null,"sizeScale":"linear"}},{"id":"t1evju8","type":"point","config":{"dataId":"-xu8mls","columnMode":"points","label":"hq","color":[130,154,227],"highlightColor":[252,242,26,255],"columns":{"lat":"hq_lat","lng":"hq_long"},"isVisible":true,"visConfig":{"radius":10,"fixedRadius":false,"opacity":0.8,"outline":false,"thickness":2,"strokeColor":null,"colorRange":{"name":"Global Warming","type":"sequential","category":"Uber","colors":["#4C0035","#880030","#B72F15","#D6610A","#EF9100","#FFC300"]},"strokeColorRange":{"name":"Global Warming","type":"sequential","category":"Uber","colors":["#4C0035","#880030","#B72F15","#D6610A","#EF9100","#FFC300"]},"radiusRange":[0,50],"filled":true,"billboard":false,"allowHover":true,"showNeighborOnHover":false,"showHighlightColor":true},"hidden":false,"textLabel":[{"field":null,"color":[255,255,255],"size":18,"offset":[0,0],"anchor":"start","alignment":"center","outlineWidth":0,"outlineColor":[255,0,0,255],"background":false,"backgroundColor":[0,0,200,255]}]},"visualChannels":{"colorField":null,"colorScale":"quantile","strokeColorField":null,"strokeColorScale":"quantile","sizeField":null,"sizeScale":"linear"}},{"id":"omwt7yi","type":"line","config":{"dataId":"-xu8mls","columnMode":"points","label":"point -> hq line","color":[195,40,153],"highlightColor":[252,242,26,255],"columns":{"lat0":"hq_lat","lng0":"hq_long","lat1":"Latitude","lng1":"Longitude"},"isVisible":true,"visConfig":{"opacity":0.8,"thickness":2,"colorRange":{"name":"Global Warming","type":"sequential","category":"Uber","colors":["#4C0035","#880030","#B72F15","#D6610A","#EF9100","#FFC300"]},"sizeRange":[0,10],"targetColor":[66,101,204],"elevationScale":1},"hidden":false,"textLabel":[{"field":null,"color":[255,255,255],"size":18,"offset":[0,0],"anchor":"start","alignment":"center","outlineWidth":0,"outlineColor":[255,0,0,255],"background":false,"backgroundColor":[0,0,200,255]}]},"visualChannels":{"colorField":null,"colorScale":"quantile","sizeField":null,"sizeScale":"linear"}}],"effects":[],"interactionConfig":{"tooltip":{"fieldsToShow":{"-xu8mls":[{"name":"Name","format":null},{"name":"Office City","format":null},{"name":"Office Country","format":null}],"-mvlvqn":[{"name":"Name","format":null},{"name":"HQ Country","format":null},{"name":"Website","format":null},{"name":"Revenue","format":null},{"name":"Number of employees ","format":null},{"name":"Clients","format":null},{"name":"Offices","format":null}]},"compareMode":false,"compareType":"absolute","enabled":true},"brush":{"size":0.5,"enabled":false},"geocoder":{"enabled":false},"coordinate":{"enabled":false}},"layerBlending":"normal","overlayBlending":"normal","splitMaps":[],"animationConfig":{"currentTime":null,"speed":1},"editor":{"features":[],"visible":true}},"mapState":{"bearing":0,"dragRotate":false,"latitude":11.763800599308452,"longitude":-65.88001562618189,"pitch":0,"zoom":2.125653731443872,"isSplit":false,"isViewportSynced":true,"isZoomLocked":false,"splitMapViewports":[]},"mapStyle":{"styleType":"dark-matter","topLayerGroups":{},"visibleLayerGroups":{"label":true,"road":true,"border":false,"building":true,"water":true,"land":true,"3d building":false},"threeDBuildingColor":[15.035172933000911,15.035172933000911,15.035172933000911],"backgroundColor":[0,0,0],"mapStyles":{}},"uiState":{"mapControls":{"mapLegend":{"active":false}}}}};
+
+            const loadedData = keplerGl.KeplerGlSchema.load(
+              datasets,
+              config
+            );
+
+            // For some reason Kepler overwrites the config without extra wait time
+            window.setTimeout(() => {
+              store.dispatch(
+                keplerGl.addDataToMap({
+                  datasets: loadedData.datasets,
+                  config: loadedData.config,
+                  options: {
+                    centerMap: false,
+                  },
+                })
+              );
+            }, 500);
+          }(KeplerGl, store))
+        </script>
+      </body>
+    </html>
+  
